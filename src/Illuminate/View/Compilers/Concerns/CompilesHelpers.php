@@ -59,9 +59,22 @@ trait CompilesHelpers
     {
         $arguments ??= '()';
 
-        $class = Vite::class;
+        return "<?php echo app('vite'){$arguments}; ?>";
+    }
 
-        return "<?php echo app('$class'){$arguments}; ?>";
+    /**
+     * Compile the "viteApp" statements into valid PHP.
+     *
+     * @param  string|null  $arguments
+     * @return string
+     */
+    protected function compileViteApp($arguments)
+    {
+        [$app, $entryPoints] = array_map('trim', explode(',', trim((string) $arguments, '()'), 2)) + [1 => null];
+
+        return $entryPoints
+            ? "<?php echo app('vite')->app($app)->withEntryPoints([$entryPoints], true)->toHtml(); ?>"
+            : "<?php echo app('vite')->app($app)->toHtml(); ?>";
     }
 
     /**
@@ -71,8 +84,6 @@ trait CompilesHelpers
      */
     protected function compileViteReactRefresh()
     {
-        $class = Vite::class;
-
-        return "<?php echo app('$class')->reactRefresh(); ?>";
+        return "<?php echo app('vite')->reactRefresh(); ?>";
     }
 }

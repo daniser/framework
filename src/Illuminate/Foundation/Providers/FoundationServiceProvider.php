@@ -12,7 +12,6 @@ use Illuminate\Foundation\Console\CliDumper;
 use Illuminate\Foundation\Http\HtmlDumper;
 use Illuminate\Foundation\MaintenanceModeManager;
 use Illuminate\Foundation\Precognition;
-use Illuminate\Foundation\Vite;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Request;
 use Illuminate\Log\Events\MessageLogged;
@@ -34,6 +33,7 @@ class FoundationServiceProvider extends AggregateServiceProvider
     protected $providers = [
         FormRequestServiceProvider::class,
         ParallelTestingServiceProvider::class,
+        ViteServiceProvider::class,
     ];
 
     /**
@@ -43,7 +43,6 @@ class FoundationServiceProvider extends AggregateServiceProvider
      */
     public $singletons = [
         HttpFactory::class => HttpFactory::class,
-        Vite::class => Vite::class,
     ];
 
     /**

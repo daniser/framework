@@ -3,13 +3,16 @@
 namespace Illuminate\Foundation;
 
 use Exception;
-use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Contracts\Foundation\Vite as ViteContract;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Illuminate\Support\Traits\Macroable;
+use ReflectionClass;
+use ReflectionMethod;
 
-class Vite implements Htmlable
+class Vite implements ViteContract
 {
     use Macroable;
 
@@ -91,6 +94,37 @@ class Vite implements Htmlable
     protected static $manifests = [];
 
     /**
+     * Apply configuration to the Vite instance.
+     *
+     * @param  array  $config
+     * @return $this
+     */
+    public function configure($config)
+    {
+        $class = new ReflectionClass($this);
+        $methods = $class->getMethods(ReflectionMethod::IS_PUBLIC);
+        $currentMethod = __FUNCTION__;
+
+        $methodKeyMap = [
+            'useCspNonce' => 'nonce',
+            'useScriptTagAttributes' => 'tag_attributes.script',
+            'useStyleTagAttributes' => 'tag_attributes.style',
+            'usePreloadTagAttributes' => 'tag_attributes.preload',
+        ];
+
+        collect($methods)->filter(fn (ReflectionMethod $method) => ! $method->isStatic()
+            && $method->getName() !== $currentMethod
+            && preg_match('/^(use|with)/', $method->getName())
+        )->each(function (ReflectionMethod $method) use ($config, $methodKeyMap) {
+            $key = $methodKeyMap[$method->getName()]
+                ?? str($method->getName())->after('use')->after('with')->snake()->value();
+            Arr::has($config, $key) && $method->invoke($this, Arr::get($config, $key));
+        });
+
+        return $this;
+    }
+
+    /**
      * Get the preloaded assets.
      *
      * @return array
@@ -138,11 +172,12 @@ class Vite implements Htmlable
      * Set the Vite entry points.
      *
      * @param  array  $entryPoints
+     * @param  bool  $append
      * @return $this
      */
-    public function withEntryPoints($entryPoints)
+    public function withEntryPoints($entryPoints, $append = false)
     {
-        $this->entryPoints = $entryPoints;
+        $this->entryPoints = $append ? array_unique([...$this->entryPoints, ...$entryPoints]) : $entryPoints;
 
         return $this;
     }

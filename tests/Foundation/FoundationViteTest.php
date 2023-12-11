@@ -7,6 +7,7 @@ use Illuminate\Foundation\Vite;
 use Illuminate\Support\Facades\Vite as ViteFacade;
 use Illuminate\Support\Str;
 use Orchestra\Testbench\TestCase;
+use ReflectionObject;
 
 class FoundationViteTest extends TestCase
 {
@@ -1207,6 +1208,62 @@ class FoundationViteTest extends TestCase
         $this->expectExceptionMessage('Unable to locate file from Vite manifest: '.public_path('build/assets/app.versioned.js'));
 
         ViteFacade::content('resources/js/app.js');
+    }
+
+    public function testItCreatesInstances()
+    {
+        $this->assertSame(ViteFacade::app(), ViteFacade::app());
+        $this->assertSame(ViteFacade::app('app1'), ViteFacade::app('app1'));
+        $this->assertNotSame(ViteFacade::app('app2'), ViteFacade::app('app3'));
+    }
+
+    public function testItCanBeConfiguredWithArray()
+    {
+        $config = [
+            'nonce' => 'expected-nonce',
+            'integrity_key' => 'some-integrity-key',
+            'entry_points' => ['resources/js/app.js'],
+            'hot_file' => 'cold',
+            'build_directory' => 'build/packages',
+            'manifest_filename' => 'oktoberfest.json',
+            'tag_attributes' => [
+                'script' => ['type' => 'text/javascript', 'nomodule'],
+                'style' => ['type' => 'text/css'],
+                'preload' => false,
+            ],
+        ];
+
+        $vite = app(Vite::class)->configure($config);
+
+        $this->assertEquals($vite->cspNonce(), $config['nonce']);
+        $this->assertEquals($this->getViteProperty($vite, 'integrityKey'), $config['integrity_key']);
+        $this->assertEquals($this->getViteProperty($vite, 'entryPoints'), $config['entry_points']);
+        $this->assertEquals($vite->hotFile(), $config['hot_file']);
+        $this->assertEquals($this->getViteProperty($vite, 'buildDirectory'), $config['build_directory']);
+        $this->assertEquals($this->getViteProperty($vite, 'manifestFilename'), $config['manifest_filename']);
+        $this->assertEquals($this->getViteProperty($vite, 'scriptTagAttributesResolvers')[0](), $config['tag_attributes']['script']);
+        $this->assertEquals($this->getViteProperty($vite, 'styleTagAttributesResolvers')[0](), $config['tag_attributes']['style']);
+        $this->assertEquals($this->getViteProperty($vite, 'preloadTagAttributesResolvers')[0](), $config['tag_attributes']['preload']);
+    }
+
+    public function testItAppendsEntryPoints(): void
+    {
+        $vite = app(Vite::class)->withEntryPoints(['entry']);
+        $this->assertEquals(['entry'], $this->getViteProperty($vite, 'entryPoints'));
+
+        $vite->withEntryPoints(['entry1']);
+        $this->assertEquals(['entry1'], $this->getViteProperty($vite, 'entryPoints'));
+
+        $vite->withEntryPoints(['entry2'], true);
+        $this->assertEquals(['entry1', 'entry2'], $this->getViteProperty($vite, 'entryPoints'));
+
+        $vite->withEntryPoints(['entry2'], true);
+        $this->assertEquals(['entry1', 'entry2'], $this->getViteProperty($vite, 'entryPoints'));
+    }
+
+    protected function getViteProperty($vite, $propertyName)
+    {
+        return (new ReflectionObject($vite))->getProperty($propertyName)->getValue($vite);
     }
 
     protected function makeViteManifest($contents = null, $path = 'build')
